@@ -6,10 +6,13 @@ import csv
 from get_all_tickers import get_tickers as gt
 
 import investpy
-
+with open("test.csv", "w") as myfile:
+    myfile.write("Date,Symbol,Signal\n")
 def dotweets(public_tweets):
+    print('dotweets')
     for tweet in public_tweets:
         max_id = tweet.id
+        #print(max_id)
         s = tweet.text
         sell = None
         buy = None
@@ -25,38 +28,52 @@ def dotweets(public_tweets):
 
             if len(buy.split('ALERT:')) > 1:
                 buys = buy.split('ALERT:')[1].split(' ')
-            else:
-                buys = buy.split(' ')
+            #else:
+                #buys = buy.split(' ')
         if sell is not None:
             if len(sell.split('ALERT:')) > 1:
                 sells = sell.split('ALERT:')[1].split(' ')
-            else:
-                sells = sell.split(' ')
+           # else:
+                #sells = sell.split(' ')
         buyw = ""
         
         if len(buys) <= 1:
-            buyw = 'No buy text for this tweet!'
+            buyw = ''
         else:
             for s in buys:
                 if s in tickers:
                     if len(s) > len(buyw):
-                        buyw = s
+                        if len(s) > 1 and not s.isnumeric():
+                            buyw = s
         sellw = ""
         if len(sells) <= 1:
-            sellw = 'No sell text for this tweet!'
+            sellw = ''
         else:
             for s in sells:
                 if s in tickers:
                     if len(s) > len(sellw):
-                        sellw = s
-        if buy is not None:
-            print('buy ticker: ' + buyw + ' and buy string: ' + buy)
-        if sell is not None:
-            print('sell ticker: ' + sellw + ' and sell string: ' + sell)
+                        if len(s) > 1 and not s.isnumeric():
+                            sellw = s
+        if buy is not None and len(buyw) > 0:
+            with open("test.csv", "a") as myfile:
+                print(buy)
+                myfile.write(str(tweet.created_at)+','+buyw+',C\n')
+
+            #print('buy ticker: ' + buyw + ' and buy string: ' + buy)
+        elif sell is not None and len(sellw) > 0:
+            with open("test.csv", "a") as myfile:
+                print(sell)
+                myfile.write(str(tweet.created_at)+','+sellw+',P\n')
+        #else:
+            #print(s)
+            #print('sell ticker: ' + sellw + ' and sell string: ' + sell)
         #print('buy: ' + buy)
         #print('sell: ' + sell)    
-        public_tweets = api.user_timeline({"screen_name": 'ducksquadpicks', "since_id": None, "max_id": max_id, "count": 50})
-    dotweets(public_tweets)
+
+    public_tweets = api.user_timeline(screen_name = 'duckingmoney', max_id = max_id, count = 100)
+    print('ducksquadpicks', None, max_id)   
+    if (len(public_tweets) > 5):
+        dotweets(public_tweets)
 
 tickers = gt.get_tickers()
 df = investpy.etfs.get_etfs()
@@ -69,5 +86,5 @@ auth.set_access_token('1024548186478637057-nYmeXy3nep57u499lXqz3aSYYjHgwk', 'mE3
 
 api = tweepy.API(auth)
 
-public_tweets = api.user_timeline({"screen_name": 'ducksquadpicks', "since_id": None, "max_id": None, "count": 50})
+public_tweets = api.user_timeline(screen_name = 'ducksquadpicks', count = 100)
 dotweets(public_tweets)
