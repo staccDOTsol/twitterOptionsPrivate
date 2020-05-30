@@ -14,7 +14,7 @@ def replace(file_path):
                     datetime[-1] = '00'
                     newdatetime = ':'.join(datetime)
                     csv[0] = newdatetime
-                    toappend.append(csv[0] + ',' + csv[1] + '\n')
+                    toappend.append(','.join(csv))
         toappend.reverse()
         for line in toappend:
             new_file.write(line)
