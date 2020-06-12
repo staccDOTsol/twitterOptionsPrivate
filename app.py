@@ -2,6 +2,53 @@ import requests
 
 import tweepy
 import csv
+import datetime
+import os
+from tempfile import mkstemp
+from shutil import move, copymode
+from os import fdopen, remove
+import dropbox
+
+class TransferData:
+    def __init__(self, access_token):
+        self.access_token = access_token
+
+    def upload_file(self, file_from, file_to):
+        """upload a file to Dropbox using API v2
+        """
+        dbx = dropbox.Dropbox(self.access_token)
+
+        with open(file_from, 'rb') as f:
+            dbx.files_upload(f.read(), file_to, mode=dropbox.files.WriteMode.overwrite)
+
+def upload():
+    access_token = os.environ['dropbox_access']
+    transferData = TransferData(access_token)
+
+    file_from = 'test_replaced.csv'
+    file_to = '/test_replaced.csv'  # The full path to upload the file to, including the file name
+
+    # API v2
+    transferData.upload_file(file_from, file_to)
+
+
+def replace(file_path):
+    #Create temp file
+    toappend = []
+    with open('./test_replaced.csv','w') as new_file:
+        with open(file_path) as old_file:
+            for line in old_file:
+                csv = line.split(',')
+                if 'D' not in csv[-1]:
+                    datetime = csv[0].split(':')
+                    datetime[-1] = '00'
+                    newdatetime = ':'.join(datetime)
+                    csv[0] = newdatetime
+                    toappend.append(','.join(csv))
+        toappend.reverse()
+        for line in toappend:
+            new_file.write(line)
+    upload()
 
 from get_all_tickers import get_tickers as gt
 
@@ -14,9 +61,9 @@ def isfloat(value):
     return True
   except ValueError:
     return False
-
+ignores = []
 def dotweets(public_tweets):
-    print('dotweets')
+    #print('dotweets')
     for tweet in public_tweets:
         max_id = tweet.id
         #print(max_id)
@@ -37,26 +84,34 @@ def dotweets(public_tweets):
 
             if len(buy.split('NEW ALERT:')) > 1:
                 buys = buy.split('NEW ALERT:')[1].split(' ')
-                print(s)
+                #print(s)
             #else:
                 #buys = buy.split(' ')
         elif sell is None:
             if len(s.split('NEW ALERT:')) > 1:
                 none = s.split('NEW ALERT:')[1].split(' ')
-                print(s)
+               # print(s)
         if sell is not None:
             if len(sell.split('NEW ALERT:')) > 1:
                 sells = sell.split('NEW ALERT:')[1].split(' ')
-                print(s)
+              #  print(s)
         elif buy is None:
             if len(s.split('NEW ALERT:')) > 1:
                 none = s.split('NEW ALERT:')[1].split(' ')
-                print(s)
+              #  print(s)
                 #sells = sell.split(' ')
         pocs = []
         buyw = []
         strikes = []
-        expiries = ""
+        
+        d = tweet.created_at
+        while d.weekday() != 4:
+            d += datetime.timedelta(1)
+        print('today')
+        print(tweet.created_at)
+        print(d)
+        print('this week')
+        expiries = d.strftime('%m/%d')
         prices = []
         nonew = []
         if len(none) <= 1:
@@ -77,9 +132,26 @@ def dotweets(public_tweets):
                 if '/' in s:
                     expiries = (s)
                 if 'next' in olds and 'week' in s:
-                    expiries = 'next week' 
+                    d = tweet.created_at
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    d += datetime.timedelta(1)
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    print('today')
+                    print(tweet.created_at)
+                    print('next week')
+                    print(d)
+                    expiries = d.strftime('%m/%d')
                 if 'this' in olds and 'week' in s:
-                    expiries = 'this week' 
+                    d = tweet.created_at
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    print('today')
+                    print(tweet.created_at)
+                    print(d)
+                    print('this week')
+                    expiries = d.strftime('%m/%d')
                 if 'at' in olds and isfloat(s):
                     prices.append(s)
                 olds = s
@@ -90,6 +162,7 @@ def dotweets(public_tweets):
                     prices.append('')
 
                 if len(strikes) < len(nonew):
+                    ignores.append(none)
                     strikes.append('')
                 if len(pocs) < len(nonew):
                     pocs.append('')
@@ -111,9 +184,26 @@ def dotweets(public_tweets):
                 if '/' in s:
                     expiries = (s)
                 if 'next' in olds and 'week' in s:
-                    expiries = 'next week' 
+                    d = tweet.created_at
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    d += datetime.timedelta(1)
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    print('today')
+                    print(tweet.created_at)
+                    print('next week')
+                    print(d)
+                    expiries = d.strftime('%m/%d')
                 if 'this' in olds and 'week' in s:
-                    expiries = 'this week' 
+                    d = tweet.created_at
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    print('today')
+                    print(tweet.created_at)
+                    print('this week')
+                    print(d)
+                    expiries = d.strftime('%m/%d')
                 if 'at' in olds and isfloat(s):
                     prices.append(s)
                 olds = s
@@ -125,6 +215,7 @@ def dotweets(public_tweets):
 
                 if len(strikes) < len(buyw):
                     strikes.append('')
+                    ignores.append(buys)
                 if len(pocs) < len(buyw):
                     pocs.append('')
         sellw = []
@@ -146,9 +237,26 @@ def dotweets(public_tweets):
                 if '/' in s:
                     expiries = (s)
                 if 'next' in olds and 'week' in s:
-                    expiries = 'next week' 
+                    d = tweet.created_at
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    d += datetime.timedelta(1)
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    print('today')
+                    print(tweet.created_at)
+                    print('next week')
+                    print(d)
+                    expiries = d.strftime('%m/%d')
                 if 'this' in olds and 'week' in s:
-                    expiries = 'this week' 
+                    d = tweet.created_at
+                    while d.weekday() != 4:
+                        d += datetime.timedelta(1)
+                    print('today')
+                    print(tweet.created_at)
+                    print('this week')
+                    print(d)
+                    expiries = d.strftime('%m/%d')
                 if 'at' in olds and isfloat(s):
                     prices.append(s)
                 olds = s
@@ -158,28 +266,33 @@ def dotweets(public_tweets):
 
                 if len(strikes) < len(sellw):
                     strikes.append('')
+                    ignores.append(sells)
                 if len(pocs) < len(sellw):
                     pocs.append('')
         if none is not None and len(nonew) > 0:
             with open("test.csv", "a") as myfile:
-                print(buy)  
+               # print(buy)  
                 
                 for i in range(0, len(nonew)):
-                    myfile.write(str(tweet.created_at)+',,' + pocs[i] + ',' + nonew[i]+',' + strikes[i] + ',' + prices[i] + ',' + expiries + '\n')
+                    if 'https' not in expiries and none not in ignores:
+                        
+                        myfile.write(str(tweet.created_at)+',,' + pocs[i] + ',' + nonew[i]+',' + strikes[i] + ',' + prices[i] + ',' + str(expiries) + '\n')
 
             #print('buy ticker: ' + buyw + ' and buy string: ' + buy)    
         if buy is not None and len(buyw) > 0:
             with open("test.csv", "a") as myfile:
-                print(buy)  
+                #print(buy)  
                 
                 for i in range(0, len(buyw)):
-                    myfile.write(str(tweet.created_at)+',buy,' + pocs[i] + ',' + buyw[i]+',' + strikes[i] + ',' + prices[i] + ',' + expiries + '\n')
+                    if 'https' not in expiries and buys not in ignores:
+                        myfile.write(str(tweet.created_at)+',buy,' + pocs[i] + ',' + buyw[i]+',' + strikes[i] + ',' + prices[i] + ',' + str(expiries) + '\n')
 
             #print('buy ticker: ' + buyw + ' and buy string: ' + buy)
         elif sell is not None and len(sellw) > 0:
             with open("test.csv", "a") as myfile:
                 for i in range(0, len(sellw)):
-                    myfile.write(str(tweet.created_at)+',sell,' + pocs[i] + ',' + sellw[i]+',' + strikes[i] + ',' + prices[i] + ',' + expiries + '\n')
+                    if 'https' not in expiries and sells not in ignores:
+                        myfile.write(str(tweet.created_at)+',sell,' + pocs[i] + ',' + sellw[i]+',' + strikes[i] + ',' + prices[i] + ',' + str(expiries) + '\n')
         #else:
             #print(s)
             #print('sell ticker: ' + sellw + ' and sell string: ' + sell)
@@ -187,9 +300,11 @@ def dotweets(public_tweets):
         #print('sell: ' + sell)    
 
     public_tweets = api.user_timeline(screen_name = 'ducksquadpicks', max_id = max_id)
-    print('ducksquadpicks', None, max_id)   
-    if (len(public_tweets) > 5):
-        dotweets(public_tweets)
+    #print('ducksquadpicks', None, max_id)   
+    #if (len(public_tweets) > 5):
+        #dotweets(public_tweets)
+    #else:
+    replace('./test.csv')
 
 tickers = gt.get_tickers()
 df = investpy.etfs.get_etfs()
@@ -202,5 +317,6 @@ auth.set_access_token('1024548186478637057-nYmeXy3nep57u499lXqz3aSYYjHgwk', 'mE3
 
 api = tweepy.API(auth)
 
-public_tweets = api.user_timeline(screen_name = 'ducksquadpicks')
+public_tweets = api.user_timeline(screen_name = 'ducksquadpicks', count = 100)
 dotweets(public_tweets)
+
